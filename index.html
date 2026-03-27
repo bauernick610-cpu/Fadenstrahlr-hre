@@ -1,0 +1,99 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.game{padding:1rem 0;background:#1A1A2E;border-radius:12px;padding:1.5rem;min-height:400px}
+.top-bar{background:#0D7377;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:12px;margin-bottom:1.2rem}
+.phase-badge{background:#1A1A2E;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#14A6AA;flex-shrink:0}
+.phase-title{font-size:13px;font-weight:600;color:#ffffff;flex:1}
+.score{font-size:13px;font-weight:600;color:#14A6AA}
+.reset{font-size:12px;padding:4px 12px;cursor:pointer;border:1px solid #14A6AA;border-radius:6px;background:transparent;color:#14A6AA}
+.reset:hover{background:#0D7377;color:#fff}
+.instr{font-size:13px;color:#AAAACC;margin-bottom:1rem;font-style:italic}
+.words{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:1rem}
+.chip{padding:8px 6px;border:1px solid #0D7377;border-radius:8px;background:#252540;font-size:13px;font-weight:600;color:#ffffff;cursor:grab;text-align:center;user-select:none;transition:opacity .15s,border-color .15s}
+.chip:hover{border-color:#14A6AA}
+.chip:active{cursor:grabbing}
+.chip.dragging{opacity:.3}
+.chip.matched{opacity:.25;cursor:default;pointer-events:none}
+.pictures{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.card{border:1px solid #333355;border-radius:10px;background:#252540;padding:8px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:115px;transition:border-color .15s,background .15s}
+.card.over{border:2px solid #14A6AA;background:#1a3a3c}
+.card.correct{border:2px solid #2E7D32;background:#1a2e1a}
+.card.wrong{border:2px solid #C62828;background:#2e1a1a;animation:shake .35s}
+.icon{font-size:30px;line-height:1}
+.drop{min-height:26px;width:100%;display:flex;align-items:center;justify-content:center;border:1px dashed #444466;border-radius:6px;font-size:11px;color:#666688;padding:3px}
+.drop.filled{border-color:transparent}
+.ok{font-size:12px;font-weight:600;color:#4CAF50}
+.err{font-size:12px;font-weight:600;color:#E57373}
+.done{text-align:center;padding:.8rem;font-size:15px;font-weight:600;color:#14A6AA;display:none;margin-top:.5rem}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+</style>
+
+<div class="game">
+  <div class="top-bar">
+    <div class="phase-badge">5</div>
+    <span class="phase-title">New Vocabulary – Part B &nbsp;·&nbsp; Drag & Drop</span>
+    <span class="score" id="sc">0 / 10</span>
+    <button class="reset" onclick="reset()">Reset</button>
+  </div>
+
+  <p class="instr">Drag each word to the matching picture. Write the German translation on your worksheet.</p>
+
+  <div class="words" id="words"></div>
+  <div class="pictures" id="pics"></div>
+  <p class="done" id="done">Well done – all matched correctly!</p>
+</div>
+
+<script>
+const ITEMS=[
+  {w:"to frown",icon:"😠"},{w:"to paint",icon:"🎨"},
+  {w:"adventure",icon:"🗺️"},{w:"sheep",icon:"🐑"},
+  {w:"advice",icon:"💬"},{w:"appointment",icon:"📅"},
+  {w:"afraid",icon:"😨"},{w:"edges",icon:"📐"},
+  {w:"ugly",icon:"🤢"},{w:"to finish",icon:"✅"},
+];
+let ok=0,drag=null;
+const shuffle=a=>{const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
+
+function build(){
+  const wDiv=document.getElementById("words");
+  const pDiv=document.getElementById("pics");
+  wDiv.innerHTML="";pDiv.innerHTML="";
+  shuffle(ITEMS).forEach(item=>{
+    const c=document.createElement("div");
+    c.className="chip";c.textContent=item.w;c.draggable=true;c.dataset.w=item.w;
+    c.addEventListener("dragstart",e=>{drag=c;c.classList.add("dragging");e.dataTransfer.effectAllowed="move";});
+    c.addEventListener("dragend",()=>c.classList.remove("dragging"));
+    wDiv.appendChild(c);
+  });
+  shuffle(ITEMS).forEach(item=>{
+    const card=document.createElement("div");
+    card.className="card";card.dataset.ans=item.w;
+    const ic=document.createElement("div");ic.className="icon";ic.textContent=item.icon;
+    const z=document.createElement("div");z.className="drop";z.textContent="drop here";
+    card.appendChild(ic);card.appendChild(z);
+    card.addEventListener("dragover",e=>{e.preventDefault();if(!card.classList.contains("correct"))card.classList.add("over");});
+    card.addEventListener("dragleave",()=>card.classList.remove("over"));
+    card.addEventListener("drop",e=>{
+      e.preventDefault();card.classList.remove("over");
+      if(!drag||card.classList.contains("correct"))return;
+      const w=drag.dataset.w;
+      if(w===card.dataset.ans){
+        card.classList.add("correct");
+        z.className="drop filled";z.innerHTML="<span class='ok'>"+w+"</span>";
+        drag.classList.add("matched");ok++;
+        document.getElementById("sc").textContent=ok+" / 10";
+        if(ok===10)document.getElementById("done").style.display="block";
+      } else {
+        card.classList.add("wrong");
+        z.innerHTML="<span class='err'>"+w+" ?</span>";
+        setTimeout(()=>{card.classList.remove("wrong");z.className="drop";z.textContent="drop here";},700);
+      }
+      drag=null;
+    });
+    pDiv.appendChild(card);
+  });
+}
+
+function reset(){ok=0;document.getElementById("sc").textContent="0 / 10";document.getElementById("done").style.display="none";build();}
+build();
+</script>
